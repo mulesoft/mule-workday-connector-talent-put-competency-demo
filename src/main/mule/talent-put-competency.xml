@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:workday="http://www.mulesoft.org/schema/mule/workday" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/workday http://www.mulesoft.org/schema/mule/workday/current/mule-workday.xsd">
+	<configuration-properties file="mule-app.properties"/>
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="ca43945e-7f95-4a6f-bf10-358acf0ebc38" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<workday:config-version-32-config name="Workday_Config_version_32" doc:name="Workday Config version 30" doc:id="63220581-77c3-4c98-b71c-dc12f92e3688" >
+		<workday:basic-authentication-api-v32-connection userName="${workday.username}" password="${workday.password}" tenantName="${workday.tenantname}" hostName="${workday.hostname}" />
+	</workday:config-version-32-config>
+	<flow name="talent-put-competencyFlow" doc:id="98dc5e70-74a9-43c3-aee5-71afda3973c1" >
+		<http:listener config-ref="HTTP_Listener_config" path="/" doc:name="/" doc:id="ec8d86af-37fc-414e-9241-db4c0895d103" />
+		<parse-template location="form.html" doc:name="Parse Template" doc:id="30e41a7c-9f45-4f13-a324-162a9a8520b3" />
+	</flow>
+	<flow name="put-competency" doc:id="df10a17f-4a9e-482b-8232-708580ac8585" >
+		<http:listener config-ref="HTTP_Listener_config" path="/put-competency" doc:name="/put-competency" doc:id="035b72d9-68f4-44ba-825d-a7e953510ca9" />
+		<logger level="INFO" doc:name="Logger" doc:id="51bb0cca-abd5-4cbd-be8a-010da643f4d5" />
+		<ee:transform doc:name="Transform Message" doc:id="a42c9a4f-ca76-4402-a633-686e7ffc51a3" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/xml
+ns ns0 urn:com.workday/bsvc
+---
+{
+	ns0#"Put_Competency_Request" @(ns0#"Add_Only": true , ns0#version: "v28.0"): {
+		ns0#"Competency_Data": {
+			ns0#"Competency_Name": payload.name,
+			ns0#"Competency_Category_Reference": {
+				ns0#ID @(ns0#"type": "Competency_Category_ID"): payload.categoryTypeID
+			}
+		}
+	}
+}]]></ee:set-payload>
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="myPayload" ><![CDATA[%dw 2.0
+output application/xml
+ns ns0 urn:com.workday/bsvc
+---
+{
+	ns0#"Put_Competency_Request" @(ns0#"Add_Only": true , ns0#version: "v28.0"): {
+		ns0#"Competency_Data": {
+			ns0#"Competency_Name": payload.name,
+			ns0#"Competency_Category_Reference": {
+				ns0#ID @(ns0#"type": "Competency_Category_ID"): payload.categoryTypeID
+			}
+		}
+	}
+}]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<workday:talent operation="Put_Competency" doc:name="Talent || Put_competency" doc:id="dbf92f77-f7ca-4b3c-bbff-51a2f66ad979" config-ref="Workday_Config_version_32"/>
+		<ee:transform doc:name="Transform Message" doc:id="77142b97-a240-481e-80e1-a24b452715e0" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+ns ns0 urn:com.workday/bsvc
+---
+{
+	ID : payload.ns0#Put_Competency_Response.ns0#Competency_Reference[1]
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="eedab55b-b010-455b-ba69-d79ba8750bbe" />
+	</flow>
+	<flow name="get-competency" doc:id="fc3b64a2-707a-408e-a053-47ef08e2f000" >
+		<http:listener config-ref="HTTP_Listener_config" path="/get-competency" doc:name="/get-competency" doc:id="25936ab1-31c2-4f13-a335-3252e21ed082" />
+		<logger level="INFO" doc:name="Logger" doc:id="06d39014-4141-4b73-85c8-5df827247e7a" />
+		<ee:transform doc:name="Transform Message" doc:id="d02b238d-dc6b-41a4-b207-77cc4396717c" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/xml
+ns ns0 urn:com.workday/bsvc
+---
+{
+	ns0#"Get_Competencies_Request" @(ns0#version: "v28.0"): {
+		ns0#"Request_References": {
+			ns0#"Competency_Reference": {
+				ns0#ID @(ns0#"type": "Competency_ID"): payload.competencyID
+			}
+		}
+	}
+}]]></ee:set-payload>
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="myPayload" ><![CDATA[%dw 2.0
+output application/xml
+ns ns0 urn:com.workday/bsvc
+---
+{
+	ns0#"Get_Competencies_Request" @(ns0#version: "v28.0"): {
+		ns0#"Request_References": {
+			ns0#"Competency_Reference": {
+				ns0#ID @(ns0#"type": "Competency_ID"): payload.competencyID
+			}
+		}
+	}
+}]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<workday:talent operation="Get_Competencies" doc:name="Talent || Get_Competencies" doc:id="de33af47-d0dd-4f66-9d5a-3be9d88b0f8e" config-ref="Workday_Config_version_32"/>
+		<ee:transform doc:name="Transform Message" doc:id="1af0300a-3cb9-40b5-bf01-3393d543d397" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+ns ns0 urn:com.workday/bsvc
+---
+{
+	CompetencyName : "Competency Name: " ++ payload.ns0#Get_Competencies_Response.ns0#Response_Data.ns0#Competency.ns0#Competency_Data.ns0#Competency_Name
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="cae74218-d987-4a8a-a491-1fa21dfe0b91" />
+	</flow>
+	</mule>
